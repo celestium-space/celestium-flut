@@ -1,11 +1,6 @@
 from enum import IntEnum
-from websocket import create_connection, ABNF
+import websocket
 import socket
-
-TCP_IP = 'localhost'
-TCP_PORT = 1337
-BUFFER_SIZE = 1024
-
 
 class CMDOpcodes(IntEnum):
     ERROR = 0x00
@@ -33,13 +28,48 @@ colorMap = [
     "00FFFF",
     "FFFFFF"]
 
-ws = create_connection('wss://api.celestium.hutli.org')
-ws.send([int(CMDOpcodes.GET_ENTIRE_IMAGE)], ABNF.OPCODE_BINARY)
-entire_image = list(map(lambda i: colorMap[i], ws.recv()))
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((TCP_IP, TCP_PORT))
-to_send = ""
-for x in range(1000):
-    for y in range(1000):
-        to_send += f"PX {x} {y} {entire_image[x * y]}\n"
-s.send(to_send.encode())
+
+TCP_IP = 'localhost'
+TCP_PORT = 1337
+BUFFER_SIZE = 1024
+
+def on_message(ws, message):
+    cmd = int(message[0])
+    data = message[1:]
+    if cmd == CMDOpcodes.ENTIRE_IMAGE:
+        print("Got entire image")
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((TCP_IP, TCP_PORT))
+        to_send = ""
+        for y in range(1000):
+            for x in range(1000):
+                to_send += f"PX {x} {y} {colorMap[data[x + (y * 1000)]]}\n"
+        s.send(to_send.encode())
+        s.close()
+    elif cmd == CMDOpcodes.UPDATE_PIXEL:
+        x = (int(data[0]) << 8) + int(data[1])
+        y = (int(data[2]) << 8) + int(data[3])
+        c = colorMap[int(data[4])]
+        print(f"Got new pixel {x, y} -> {c}")
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((TCP_IP, TCP_PORT))
+        s.send(f"PX {x} {y} {c}\n".encode())
+        s.close()
+
+def on_error(ws, error):
+    print(error)
+
+def on_close(ws, close_status_code, close_msg):
+    print("### closed ###")
+
+def on_open(ws):
+    ws.send(bytearray([int(CMDOpcodes.GET_ENTIRE_IMAGE)]), websocket.ABNF.OPCODE_BINARY)
+
+if __name__ == "__main__":
+    websocket.enableTrace(True)
+    ws = websocket.WebSocketApp('wss://api.celestium.hutli.org',
+                              on_open=on_open,
+                              on_message=on_message,
+                              on_error=on_error,
+                              on_close=on_close)
+    ws.run_forever()
