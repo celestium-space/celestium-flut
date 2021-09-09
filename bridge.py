@@ -2,6 +2,7 @@ from enum import IntEnum
 import websocket
 import socket
 
+
 class CMDOpcodes(IntEnum):
     ERROR = 0x00
     GET_ENTIRE_IMAGE = 0x01
@@ -28,10 +29,10 @@ colorMap = [
     "00FFFF",
     "FFFFFF"]
 
+CELESTIUM_API_URL = 'wss://api.celestium.hutli.org'
+PIXELFLUT_URL = 'localhost'
+PIXELFLUT_PORT = 1337
 
-TCP_IP = 'localhost'
-TCP_PORT = 1337
-BUFFER_SIZE = 1024
 
 def on_message(ws, message):
     cmd = int(message[0])
@@ -39,7 +40,7 @@ def on_message(ws, message):
     if cmd == CMDOpcodes.ENTIRE_IMAGE:
         print("Got entire image")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((TCP_IP, TCP_PORT))
+        s.connect((PIXELFLUT_URL, PIXELFLUT_PORT))
         to_send = ""
         for y in range(1000):
             for x in range(1000):
@@ -52,24 +53,29 @@ def on_message(ws, message):
         c = colorMap[int(data[4])]
         print(f"Got new pixel {x, y} -> {c}")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((TCP_IP, TCP_PORT))
+        s.connect((PIXELFLUT_URL, PIXELFLUT_PORT))
         s.send(f"PX {x} {y} {c}\n".encode())
         s.close()
+
 
 def on_error(ws, error):
     print(error)
 
+
 def on_close(ws, close_status_code, close_msg):
     print("### closed ###")
 
+
 def on_open(ws):
-    ws.send(bytearray([int(CMDOpcodes.GET_ENTIRE_IMAGE)]), websocket.ABNF.OPCODE_BINARY)
+    ws.send(bytearray([int(CMDOpcodes.GET_ENTIRE_IMAGE)]),
+            websocket.ABNF.OPCODE_BINARY)
+
 
 if __name__ == "__main__":
     websocket.enableTrace(True)
-    ws = websocket.WebSocketApp('wss://api.celestium.hutli.org',
-                              on_open=on_open,
-                              on_message=on_message,
-                              on_error=on_error,
-                              on_close=on_close)
+    ws = websocket.WebSocketApp(CELESTIUM_API_URL,
+                                on_open=on_open,
+                                on_message=on_message,
+                                on_error=on_error,
+                                on_close=on_close)
     ws.run_forever()
