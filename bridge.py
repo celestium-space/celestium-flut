@@ -106,6 +106,7 @@ def on_message(ws, message):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((TCP_IP, TCP_PORT))
         to_send = f"PX {x} {y} {c}\n"
+        s.send(to_send.encode())
 
     s.close()
 
