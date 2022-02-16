@@ -42,10 +42,10 @@ colorMap = [
     "865A48",
 ]
 
-TCP_IP = "192.168.8.107"
+TCP_IP = "localhost"
 TCP_PORT = 1337
-
 BUFFER_SIZE = 1024
+INSTANCE_URL = "wss://api.celestium.space"
 
 
 async def main(instance):
@@ -84,4 +84,4 @@ async def main(instance):
 
 
 if __name__ == "__main__":
-    asyncio.run(main("wss://api.celestium.space"))
+    asyncio.run(main(INSTANCE_URL))
