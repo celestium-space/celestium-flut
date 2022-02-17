@@ -63,7 +63,10 @@ async def main(instance):
                         to_send = ""
                         for y in range(1000):
                             for x in range(1000):
-                                color = colorMap[data[x + (y * 1000)]]
+                                try:
+                                    color = colorMap[data[x + (y * 1000)]]
+                                except IndexError:
+                                    color = colorMap[0]
                                 tmp = f"PX {x} {y} {color}\n"
                                 to_send += tmp
                         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -73,10 +76,7 @@ async def main(instance):
                     elif cmd == CMDOpcodes.UPDATED_PIXEL_EVENT:
                         x = (int(data[0]) << 8) + int(data[1])
                         y = (int(data[2]) << 8) + int(data[3])
-                        try:
-                            c = colorMap[int(data[4])]
-                        except IndexError:
-                            c = colorMap[0]
+                        c = colorMap[int(data[4])]
                         print(f"Got new pixel {x, y} -> {c}")
                         to_send = f"PX {x} {y} {c}\n"
 
