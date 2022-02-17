@@ -1,6 +1,7 @@
 import asyncio
 import socket
 from enum import IntEnum
+from time import sleep
 
 import websockets
 
@@ -49,38 +50,43 @@ INSTANCE_URL = "wss://api.celestium.space"
 
 
 async def main(instance):
-    async with websockets.connect(instance, ping_interval=None) as ws:
-        await ws.send(bytes([int(CMDOpcodes.GET_CANVAS)]))
-        while True:
-            message = await ws.recv()
-            cmd = int(message[0])
-            data = message[1:]
-            if cmd == CMDOpcodes.CANVAS:
-                print("Got entire image")
-                to_send = ""
-                for y in range(1000):
-                    for x in range(1000):
-                        color = colorMap[data[x + (y * 1000)]]
-                        tmp = f"PX {x} {y} {color}\n"
-                        to_send += tmp
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((TCP_IP, TCP_PORT))
-                s.send(to_send.encode())
-                s.close()
-            elif cmd == CMDOpcodes.UPDATED_PIXEL_EVENT:
-                x = (int(data[0]) << 8) + int(data[1])
-                y = (int(data[2]) << 8) + int(data[3])
-                try:
-                    c = colorMap[int(data[4])]
-                except IndexError:
-                    c = colorMap[0]
-                print(f"Got new pixel {x, y} -> {c}")
-                to_send = f"PX {x} {y} {c}\n"
+    while True:
+        try:
+            async with websockets.connect(instance, ping_interval=None) as ws:
+                await ws.send(bytes([int(CMDOpcodes.GET_CANVAS)]))
+                while True:
+                    message = await ws.recv()
+                    cmd = int(message[0])
+                    data = message[1:]
+                    if cmd == CMDOpcodes.CANVAS:
+                        print("Got entire image")
+                        to_send = ""
+                        for y in range(1000):
+                            for x in range(1000):
+                                color = colorMap[data[x + (y * 1000)]]
+                                tmp = f"PX {x} {y} {color}\n"
+                                to_send += tmp
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.connect((TCP_IP, TCP_PORT))
+                        s.send(to_send.encode())
+                        s.close()
+                    elif cmd == CMDOpcodes.UPDATED_PIXEL_EVENT:
+                        x = (int(data[0]) << 8) + int(data[1])
+                        y = (int(data[2]) << 8) + int(data[3])
+                        try:
+                            c = colorMap[int(data[4])]
+                        except IndexError:
+                            c = colorMap[0]
+                        print(f"Got new pixel {x, y} -> {c}")
+                        to_send = f"PX {x} {y} {c}\n"
 
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((TCP_IP, TCP_PORT))
-                s.send(to_send.encode())
-                s.close()
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.connect((TCP_IP, TCP_PORT))
+                        s.send(to_send.encode())
+                        s.close()
+        except Exception as e:
+            print(f'Could not connect to "{instance}", retrying in 5min: "{e}"')
+        sleep(60 * 5)
 
 
 if __name__ == "__main__":
